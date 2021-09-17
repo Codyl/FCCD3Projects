@@ -1,0 +1,153 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        #tooltip {
+            position: absolute;
+            background-color: lightgray;
+            border-radius: 5px;
+            padding: 5px;
+            opacity: 0;
+        }
+        svg {
+            background-color: azure;
+        }
+        #legend {
+            width: 100px;
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        function getPaceAsDate(time) {
+            const date = new Date();
+            date.setMinutes(time.slice(0,2));
+            date.setSeconds(time.slice(3));
+            return date;
+        }
+        function getYearAsDate(year) {
+            return new Date(`January 1, ${year} 1:00:00`);
+        }
+        function displayGraph(dataset) {
+            const padding = 40;
+            const w = 1000;
+            const h = 500;
+            const color = d3.scaleOrdinal(['orange','green']);
+
+            const minYear = d3.min(dataset, (d) => getYearAsDate(d.Year));
+            const maxYear = d3.max(dataset, (d) => getYearAsDate(d.Year));
+            const xScale = d3.scaleTime()
+                .domain([minYear, maxYear])
+                .range([padding, w - padding]);
+
+            const minTime = d3.min(dataset, (d) => getPaceAsDate(d.Time));
+            const maxTime = d3.max(dataset, (d) => getPaceAsDate(d.Time));
+            const yScale = d3.scaleLinear()
+                .domain([minTime, maxTime])
+                .range([h-padding, padding]);
+
+            let tooltip = d3.select('body')
+                .append('div')
+                .attr('id','tooltip');
+
+            const svg = d3.select('body')
+                .append('svg')
+                .attr("width", w)
+                .attr("height", h)
+                .style('padding', padding);
+                
+            svg.selectAll('circle')
+                .data(dataset)
+                .enter()
+                .append('circle')
+                .attr('cx', (d) => xScale(getYearAsDate(d.Year)))
+                .attr('cy', (d) => yScale(getPaceAsDate(d.Time)))
+                .attr('data-xvalue', d => getYearAsDate(d.Year))
+                .attr('data-yvalue', d => getPaceAsDate(d.Time))
+                .attr('data-legend', d => {if(d.Doping != '') return 'dope'; else return 'nope'})
+                .attr('data-legend-color', d => {if(d.Doping != '') return color[0]; else return color[1]})
+                .attr('r',5)
+                .attr('class','dot')
+                .style('fill',d => {return color(d.Doping !== '')})
+                .on('mouseover', function(event, d) {
+                    tooltip
+                        .transition()
+                        .duration(200)
+                        .style("opacity", 0.9);
+                    tooltip
+                        .html(`Year: ${d.Year}<br/> Time: ${d.Time}<br/>${d.Doping}`)
+                        .style("left", event.pageX+30 + "px")
+                        .style("top", event.pageY + "px")
+                        .attr("data-year", getYearAsDate(d.Year))
+                        .attr("data-pace", getPaceAsDate(d.Time));
+                })
+                .on("mouseout", function(d) {
+                    tooltip.transition().duration(400).style('opacity', 0);
+                });
+                
+                
+            const xAxis = d3.axisBottom(xScale);
+            svg.append("g")
+                .attr("transform", "translate(0," + (h - padding) + ")")
+                .attr('id','x-axis')
+                .call(xAxis);
+                
+            const yAxis = d3.axisLeft(yScale).tickFormat(d3.timeFormat('%M:%S'));
+            svg.append("g")
+                .attr("transform", "translate("+padding + ")")
+                .attr('id','y-axis')
+                .call(yAxis);
+
+                
+            svg.append('text')
+                .attr('x',(w/2))
+                .attr("y", 30)
+                .attr('id','title')
+                .attr("text-anchor", "middle")  
+                .style("font-size", "2em") 
+                .style("text-decoration", "underline")  
+                .text("Cyclist Data");
+     
+            const legend = 
+                svg.append('g')
+                .attr('id', 'legend')
+                .selectAll('#legend')
+                .data(color.domain())
+                .enter()
+                .append('g');
+
+            legend
+                .append('rect')
+                .attr('x', (d,i) => w - 170*(i+1)-50)
+                .attr('width', 20)
+                .attr('height', 20)
+                .style('fill', color);
+
+            legend
+                .append('text')
+                .attr('x', (d,i) => w - 170*(i+1)-25)
+                .attr('y', 15)
+                .text(function (d) {
+                if (d) {
+                    return 'Riders with doping allegations';
+                } else {
+                    return 'No doping allegations';
+                }
+    });
+            }
+        fetch('https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json')
+            .then(response => response.json())
+            .then(data => {
+                displayGraph(data);
+            })
+
+    </script>
+<script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>  
+</body>
+</html>
